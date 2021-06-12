@@ -13,9 +13,10 @@ if __name__ == '__main__':
     cam.set(3, cam_w)
     cam.set(4, cam_h)
     wScreen, hScreen = autopy.screen.size()
-    frame_reduction = cam_h * 10 // 100
+    frame_reduction = cam_h * 40 // 100
     overlay = False
     # fps getter
+    fps = 1
     now = 0
     past = 0
     # detector
@@ -29,8 +30,10 @@ if __name__ == '__main__':
     mode = ['none', 'mouse', 'gesture']
     mode_idx = 0
     mode_counters = 3
+    mode_pointer = 0
     # gesture constants
     gesturelag = 0.1
+
 
     while True:
         # get image
@@ -41,32 +44,26 @@ if __name__ == '__main__':
         if len(positions) != 0:
             # distance, _ = hand_detector.get_distance(img, 8, 12)
             xmouse, ymouse = positions[5][1:]
-            ymouse += 40
+            ymouse += 60
+            cv2.circle(img, (xmouse, ymouse), 5, (255, 0, 255), cv2.FILLED)
             finger = hand_detector.get_fingeron()
             # pad frame
             if len(finger) != 0:
                 # gesture condition
                 if finger == [1, 1, 1, 1, 1]:
-                    limit = 0
-                    for i in range(mode_counters):
-                        success, img = cam.read()
-                        # update the landmark
-                        img = hand_detector.get_landmark(img, draw=debug)
-                        hand_detector.find_position(img, draw=debug)
-                        finger = hand_detector.get_fingeron()
-                        # check if it is still in condition
-                        if finger != [1, 1, 1, 1, 1]:
-                            print('break out')
-                            break
-                        time.sleep(1)
-                        limit += 1
-                        print(limit)
-                    if limit == mode_counters:
+                    mode_pointer += 1/fps
+                    if mode_pointer >= (mode_counters-1.5):
+                        # minus 1.5 to balance time lost in computing lag
                         mode_idx = (mode_idx + 1) % len(mode)
-                        print(mode[mode_idx])
-                elif finger[0] + finger[3] + finger[4] == 0 and mode[mode_idx] == 'mouse':
-                    x = np.interp(xmouse, (frame_reduction, cam_w - frame_reduction), (0, wScreen + frame_reduction))
-                    y = np.interp(ymouse, (frame_reduction, cam_h - frame_reduction), (0, hScreen + frame_reduction))
+                        mode_pointer = 0
+                        if mode[mode_idx] != 'mouse':
+                            RightClick = False
+                            LeftClick = False
+                if finger != [1, 1, 1, 1, 1]:
+                    mode_pointer = 0
+                if finger[0] + finger[3] + finger[4] == 0 and mode[mode_idx] == 'mouse':
+                    x = np.interp(xmouse, (frame_reduction, cam_w - frame_reduction), (0, wScreen))
+                    y = np.interp(ymouse, (frame_reduction, cam_h - frame_reduction), (0, hScreen))
                     # smooth the value
                     currentlx = min(previouslx + (x - previouslx) / sensitivity, wScreen)
                     currently = min(previously + (y - previously) / sensitivity, hScreen)
@@ -75,7 +72,6 @@ if __name__ == '__main__':
                     previouslx, previously = currentlx, currently
                     # xmouse, ymouse
                     # click mode
-
                     Lclick = finger == [0, 0, 1, 0, 0]
                     Rclick = finger == [0, 1, 0, 0, 0]
                     if Lclick is True and LeftClick is False:
@@ -95,29 +91,33 @@ if __name__ == '__main__':
                         RightClick = False
                         print('Rup')
                 elif mode[mode_idx] is 'gesture':
-                    if finger == [1, 0, 0, 0, 0]:
-                        rt.keyDown('win')
-                        rt.press('tab')
-                        rt.keyUp('win')
-                        time.sleep(gesturelag)
                     if finger == [0, 0, 0, 0, 0]:
                         rt.keyDown('win')
                         rt.press('d')
                         rt.keyUp('win')
+                        print('to desktop')
                         time.sleep(gesturelag)
                     if finger == [0, 1, 0, 0, 0]:
                         rt.press('f5')
+                        print('refresh')
                         time.sleep(gesturelag)
-                    if finger == [0, 0, 1, 0, 0]:
+                    if finger == [0, 1, 1, 0, 0]:
                         rt.press('f2')
+                        print('rename')
                         time.sleep(gesturelag)
-                    if finger == [0, 0, 0, 0, 1]:
+                    if finger == [1, 0, 1, 0, 1]:
                         rt.keyDown('win')
                         rt.press('prtsc')
                         rt.keyUp('win')
+                        print('print screen')
                         time.sleep(gesturelag)
                 elif mode is 'none':
                     pass
+            else:
+                RightClick = False
+                LeftClick = False
+                rt.mouseUp(button=rt.RIGHT)
+                rt.mouseUp(button=rt.LEFT)
 
         # display
         if debug == True:
