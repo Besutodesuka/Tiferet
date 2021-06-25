@@ -1,5 +1,5 @@
 '''
-lib for extrack hands features
+module for extract hands features
 '''
 import math
 import mediapipe as mp

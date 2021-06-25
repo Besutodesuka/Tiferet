@@ -4,9 +4,16 @@ import numpy as np
 import autopy
 import pyautogui as rt
 import time
+import pandas as pd
 
 if __name__ == '__main__':
     debug = True
+    past = 0
+    # detector
+    hand_detector = ht.handDetector(maxHands=1, detectCon=0.6)
+    # mouse constants
+    sensitivity = 4  # use to reduce the frame so it will improve the quality of mose
+    currentlx, currently, previouslx, previously = 0, 0, 0, 0
     # get web cam
     cam_w, cam_h = 640, 480
     cam = cv2.VideoCapture(0)
@@ -18,14 +25,8 @@ if __name__ == '__main__':
     # fps getter
     fps = 1
     now = 0
-    past = 0
-    # detector
-    hand_detector = ht.handDetector(maxHands=1, detectCon=0.6)
-    # mouse constants
-    sensitivity = 4  # use to reduce the frame so it will improve the quality of mose
-    currentlx, currently, previouslx, previously = 0, 0, 0, 0
-    RightClick = False
     LeftClick = False
+    RightClick = False
     # mode controller
     mode = ['none', 'mouse', 'gesture']
     mode_idx = 0
@@ -33,8 +34,7 @@ if __name__ == '__main__':
     mode_pointer = 0
     # gesture constants
     gesturelag = 0.1
-
-
+    FPS = []
     while True:
         # get image
         success, img = cam.read()
@@ -42,12 +42,12 @@ if __name__ == '__main__':
         img = hand_detector.get_landmark(img, draw=debug)
         positions, bbox = hand_detector.find_position(img, draw=debug)
         if len(positions) != 0:
-            # distance, _ = hand_detector.get_distance(img, 8, 12)
-            xmouse, ymouse = positions[5][1:]
+            xmouse, ymouse = positions[9][1:]
             ymouse += 60
             cv2.circle(img, (xmouse, ymouse), 5, (255, 0, 255), cv2.FILLED)
             finger = hand_detector.get_fingeron()
             # pad frame
+            #FPS.append(fps)
             if len(finger) != 0:
                 # gesture condition
                 if finger == [1, 1, 1, 1, 1]:
@@ -62,11 +62,12 @@ if __name__ == '__main__':
                 if finger != [1, 1, 1, 1, 1]:
                     mode_pointer = 0
                 if finger[0] + finger[3] + finger[4] == 0 and mode[mode_idx] == 'mouse':
+                    # distance, _ = hand_detector.get_distance(img, 8, 12)
                     x = np.interp(xmouse, (frame_reduction, cam_w - frame_reduction), (0, wScreen))
                     y = np.interp(ymouse, (frame_reduction, cam_h - frame_reduction), (0, hScreen))
                     # smooth the value
-                    currentlx = min(previouslx + (x - previouslx) / sensitivity, wScreen)
-                    currently = min(previously + (y - previously) / sensitivity, hScreen)
+                    currentlx = min(previouslx + (x - previouslx) / sensitivity, wScreen-1)
+                    currently = min(previously + (y - previously) / sensitivity, hScreen-1)
                     # move the mouse
                     autopy.mouse.move((wScreen - currentlx), currently)
                     previouslx, previously = currentlx, currently
@@ -74,51 +75,47 @@ if __name__ == '__main__':
                     # click mode
                     Lclick = finger == [0, 0, 1, 0, 0]
                     Rclick = finger == [0, 1, 0, 0, 0]
-                    if Lclick is True and LeftClick is False:
+                    if Lclick == True and LeftClick == False:
                         rt.mouseDown(button=rt.LEFT)
                         LeftClick = True
                         print('Ldown')
-                    if Lclick is False and LeftClick is True:
+                    if Lclick == False and LeftClick == True:
                         rt.mouseUp(button=rt.LEFT)
                         LeftClick = False
                         print('Lup')
-                    if Rclick is True and RightClick is False:
+                    if Rclick == True and RightClick == False:
                         rt.mouseDown(button=rt.RIGHT)
                         RightClick = True
                         print('Rdown')
-                    if Rclick is False and RightClick is True:
+                    if Rclick == False and RightClick == True:
                         rt.mouseUp(button=rt.RIGHT)
                         RightClick = False
                         print('Rup')
-                elif mode[mode_idx] is 'gesture':
+                elif mode[mode_idx] == 'gesture':
                     if finger == [0, 0, 0, 0, 0]:
                         rt.keyDown('win')
                         rt.press('d')
                         rt.keyUp('win')
                         print('to desktop')
                         time.sleep(gesturelag)
-                    if finger == [0, 1, 0, 0, 0]:
+                    if finger == [0, 1, 1, 0, 0]:
                         rt.press('f5')
                         print('refresh')
                         time.sleep(gesturelag)
-                    if finger == [0, 1, 1, 0, 0]:
-                        rt.press('f2')
-                        print('rename')
-                        time.sleep(gesturelag)
-                    if finger == [1, 0, 1, 0, 1]:
+                    if finger == [1, 1, 0, 0, 1]:
                         rt.keyDown('win')
                         rt.press('prtsc')
                         rt.keyUp('win')
                         print('print screen')
+                        FPS.append(fps)
                         time.sleep(gesturelag)
-                elif mode is 'none':
+                elif mode == 'none':
                     pass
             else:
                 RightClick = False
                 LeftClick = False
                 rt.mouseUp(button=rt.RIGHT)
                 rt.mouseUp(button=rt.LEFT)
-
         # display
         if debug == True:
             # fps get
@@ -129,8 +126,14 @@ if __name__ == '__main__':
                           (255, 0, 255), 2)
             cv2.putText(img, 'FPS : {}'.format(int(fps)), (5, 30), cv2.FONT_ITALIC, 1, (255, 0, 255), 2)
             cv2.putText(img, 'mode : {}'.format(mode[mode_idx]), (5, 70), cv2.FONT_ITALIC, 1, (255, 0, 255), 2)
-            cv2.imshow('debuggings', img)
+            cv2.imshow('detector', img)
         cv2.waitKey(1)
+        if cv2.getWindowProperty('detector', cv2.WND_PROP_VISIBLE) <= 0:
+            print('closed')
+            cv2.destroyAllWindows()
+            data = pd.DataFrame({'FPS': FPS})
+            data.to_csv('fpslog.csv')
+            break
 
 
 
