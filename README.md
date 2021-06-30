@@ -6,3 +6,6 @@ this is basic code for making personal assistance focus on using video capture t
 2. use pip install all module that provided in the requirement.txt
 3. make sure to have videocapture avaliable on your device
 4. run main.py when you wanted to use
+
+# Demo video
+https://drive.google.com/file/d/1ZhtKiTgsHoVTnTh2oxtscAfWAfGnSO1a/view?usp=sharing
